@@ -1,4 +1,6 @@
-﻿using System.Collections.Immutable;
+﻿using System.Collections;
+using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 
 namespace LINQClassesLib
@@ -40,8 +42,11 @@ namespace LINQClassesLib
         public string GetLongestName(DirectoryInfo diDirectory, out int longextNameLength)
         {
             FileInfo[] files = diDirectory.GetFiles();
-            var maxName = files.Max(file => file.Name);
-            longextNameLength = maxName.Length;
+            longextNameLength = files.Max(file => file.Name.Length);
+            int temp = longextNameLength;
+            var maxName = (from file in files
+                          where file.Name.Length == temp
+                          select file.Name).First();
             return maxName;
         }
         public string[] GetLongestNames(DirectoryInfo diDirectory, int number)
@@ -100,27 +105,35 @@ namespace LINQClassesLib
         }
         public string[] GetLongestNames(DirectoryInfo diDirectory, int number)
         {
+            GC.Collect();
             FileInfo[] files = diDirectory.GetFiles();
-            string[] longestNames = new string[number];
-            FileInfo fiTemp;
-            for (int i = 0; i < files.Length; i++)
+            string[] filesNames = new string[files.Length];
+            for (int i = 0; i < filesNames.Length; i++)
             {
-                for (int j = i; j < files.Length - 1; j++)
+                filesNames[i] = files[i].Name;
+            }
+            string[] longestNames = new string[number>filesNames.Length? filesNames.Length:number];
+            string fiTemp;
+            for (int i = 0; i < filesNames.Length; i++)
+            {
+                for (int j = i; j < filesNames.Length - 1; j++)
                 {
-                    if (files[j].Length > files[j+1].Length)
+                    if (filesNames[j].Length > filesNames[j+1].Length)
                     {
-                        fiTemp = files[j];
-                        files[j] = files[j+1];
-                        files[j+1] = fiTemp;
+                        fiTemp = filesNames[j];
+                        filesNames[j] = filesNames[j+1];
+                        filesNames[j+1] = fiTemp;
                     }
                 }
             }
-            int ind = files.Length - number - 1;
+            int ind = filesNames.Length - number > 0? filesNames.Length - number:0;
             for (int i = 0; i < longestNames.Length; i++)
             {
-                longestNames[i] = files[ind].Name;
-            }
+                longestNames[i] = filesNames[ind];
+                ind++;
+                Debug.WriteLine(longestNames[i]);
 
+            }
             return longestNames;
         }
         public FileInfo[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
@@ -153,7 +166,7 @@ namespace LINQClassesLib
                 }
             }
             FileInfo[] setOfFiles;
-            if (indStart > 0 && indEnd > 0)
+            if (indStart >= 0 && indEnd > 0)
             {
                 if (indStart == indEnd)
                 {
@@ -167,6 +180,7 @@ namespace LINQClassesLib
                     for (int i = indStart; i <= indEnd; i++)
                     {
                         setOfFiles[ind] = files[i];
+                        ind++;
                     }
                 }
                 return setOfFiles;

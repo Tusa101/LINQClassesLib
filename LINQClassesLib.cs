@@ -51,22 +51,16 @@ namespace LINQClassesLib
     {
         public string GetLongestName(DirectoryInfo diDirectory, out int longextNameLength)
         {
-            Stopwatch stopwatch = new();
-            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             longextNameLength = files.Max(file => file.Name.Length);
             int temp = longextNameLength;
             var maxName = (from file in files
                           where file.Name.Length == temp
                           select file.Name).First();
-            stopwatch.Stop();
-            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return maxName;
         }
         public string[] GetLongestNames(DirectoryInfo diDirectory, int number)
         {
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             var orderedFiles = from file in files
                                orderby file.Name.Length ascending
@@ -78,14 +72,10 @@ namespace LINQClassesLib
             {
                 topNNames[i] = topNArr[i].Name;
             }
-            stopwatch.Stop();
-            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return topNNames;
         }
         public FileStruct[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
         {
-            Stopwatch stopwatch = new();
-            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             var setOfFilesByInterval = from file in files
                                where file.CreationTime >= dtStart && file.CreationTime  <= dtEnd
@@ -97,14 +87,10 @@ namespace LINQClassesLib
             {
                 fileStruct[i] = new FileStruct(tempArr[i].Name, tempArr[i].CreationTime);
             }
-            stopwatch.Stop();
-            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return fileStruct;
         }
         public Dictionary<string, int> ExtensionAllocation(DirectoryInfo diDirectory)
         {
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             var extAlloc = files.GroupBy(file => file.Extension)
                                 .Select(alloc => 
@@ -113,8 +99,6 @@ namespace LINQClassesLib
                                                 Count = alloc.Count() 
                                             })
                                 .OrderBy(cnt => cnt.Count);
-            stopwatch.Stop();
-            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return extAlloc.ToDictionary(e => e.Extension, c => c.Count);
         }
     }
@@ -122,8 +106,6 @@ namespace LINQClassesLib
     {
         public string GetLongestName(DirectoryInfo diDirectory, out int longextNameLength)
         {
-            Stopwatch stopwatch = new();
-            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             longextNameLength = -1;
             int maxLengthIndex = -1;
@@ -135,15 +117,11 @@ namespace LINQClassesLib
                     maxLengthIndex = i;
                 }
             }
-            stopwatch.Stop();
-            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return files[maxLengthIndex].Name;
         }
         public string[] GetLongestNames(DirectoryInfo diDirectory, int number)
         {
             GC.Collect();
-            Stopwatch stopwatch = new();
-            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             string[] filesNames = new string[files.Length];
             for (int i = 0; i < filesNames.Length; i++)
@@ -169,19 +147,13 @@ namespace LINQClassesLib
             {
                 longestNames[i] = filesNames[ind];
                 ind++;
-                Debug.WriteLine(longestNames[i]);
-
             }
-            stopwatch.Stop();
-            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return longestNames;
         }
 
         
         public FileStruct[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
         {
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             List<FileStruct> fileStruct = new();
             for (int i = 0; i < files.Length; i++)
@@ -232,23 +204,16 @@ namespace LINQClassesLib
                         ind++;
                     }
                 }
-                stopwatch.Stop();
-                Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
                 return setOfFiles;
             }
             else
             {
-                stopwatch.Stop();
-                Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
                 return new FileStruct[0];
             }
 
         }
         public Dictionary<string, int> ExtensionAllocation(DirectoryInfo diDirectory)
         {
-            Stopwatch stopwatch = new();
-            stopwatch.Start();
-
             var extAlloc = new Dictionary<string, int>();
             foreach (FileInfo file in diDirectory.GetFiles()) 
             {
@@ -261,8 +226,6 @@ namespace LINQClassesLib
                     extAlloc[file.Extension]++;
                 }
             }
-            stopwatch.Stop();
-            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return extAlloc;
         }
     }
@@ -270,8 +233,22 @@ namespace LINQClassesLib
 
     public class DirectorySolver
     {
+        private long[,] _times = new long[2,4];
+        public bool checkedLINQ = false;
+        public long[,] Times
+        {
+            get
+            {
+                return _times;
+            }
+            set
+            {
+                _times = value;
+            }
+        }
 
         public ISolver Solver { private get; set; }
+
 
         public DirectorySolver(ISolver solver)
         {
@@ -279,19 +256,72 @@ namespace LINQClassesLib
         }
         public string GetLongestName(DirectoryInfo diDirectory, out int longextNameLength)
         {
-            return Solver.GetLongestName(diDirectory, out longextNameLength);
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
+            var res = Solver.GetLongestName(diDirectory, out longextNameLength);
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
+            if (!checkedLINQ)
+            {
+                _times[0, 0] = stopwatch.ElapsedMilliseconds;    
+            }
+            else 
+            {
+                _times[1, 0] = stopwatch.ElapsedMilliseconds;
+            }
+
+            return res;
         }
         public string[] GetLongestNames(DirectoryInfo diDirectory, int number)
         {
-            return Solver.GetLongestNames(diDirectory, number);
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
+            var res = Solver.GetLongestNames(diDirectory, number);
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
+            if (!checkedLINQ)
+            {
+                _times[0, 1] = stopwatch.ElapsedMilliseconds;
+            }
+            else
+            {
+                _times[1, 1] = stopwatch.ElapsedMilliseconds;
+            }
+            return res;
         }
         public FileStruct[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
         {
-            return Solver.GetSetOfFilesByInterval(diDirectory, dtStart, dtEnd);
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
+            var res = Solver.GetSetOfFilesByInterval(diDirectory, dtStart, dtEnd);
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
+            if (!checkedLINQ)
+            {
+                _times[0, 2] = stopwatch.ElapsedMilliseconds;
+            }
+            else
+            {
+                _times[1, 2] = stopwatch.ElapsedMilliseconds;
+            }
+            return res;
         }
         public Dictionary<string, int> ExtensionAllocation(DirectoryInfo diDirectory)
         {
-            return Solver.ExtensionAllocation(diDirectory);
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
+            var res = Solver.ExtensionAllocation(diDirectory);
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
+            if (!checkedLINQ)
+            {
+                _times[0, 3] = stopwatch.ElapsedMilliseconds;
+            }
+            else
+            {
+                _times[1, 3] = stopwatch.ElapsedMilliseconds;
+            }
+            return res;
         }
         
     }

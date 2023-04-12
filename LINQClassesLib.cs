@@ -28,7 +28,7 @@ namespace LINQClassesLib
         /// <param name="dtStart"> Начало интервала </param>
         /// <param name="dtEnd"> Конец интервала </param>
         /// <returns> Массив имен файлов, созданных в данный интервал </returns>
-        FileInfo[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd);
+        FileStruct[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd);
         /// <summary>
         /// Распределение файлов по расширениям
         /// </summary>
@@ -37,20 +37,36 @@ namespace LINQClassesLib
         /// расширением файла и значением - количеством этих файлов</returns>
         Dictionary<string, int> ExtensionAllocation(DirectoryInfo diDirectory);
     }
+    public struct FileStruct
+    {
+        public string Name;
+        public DateTime CreationTime;
+        public FileStruct(string name, DateTime creationTime)
+        {
+            Name = name;
+            CreationTime = creationTime;
+        }
+    }
     public class LinqSolver : ISolver
     {
         public string GetLongestName(DirectoryInfo diDirectory, out int longextNameLength)
         {
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             longextNameLength = files.Max(file => file.Name.Length);
             int temp = longextNameLength;
             var maxName = (from file in files
                           where file.Name.Length == temp
                           select file.Name).First();
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return maxName;
         }
         public string[] GetLongestNames(DirectoryInfo diDirectory, int number)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             var orderedFiles = from file in files
                                orderby file.Name.Length ascending
@@ -62,19 +78,33 @@ namespace LINQClassesLib
             {
                 topNNames[i] = topNArr[i].Name;
             }
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return topNNames;
         }
-        public FileInfo[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
+        public FileStruct[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
         {
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             var setOfFilesByInterval = from file in files
                                where file.CreationTime >= dtStart && file.CreationTime  <= dtEnd
                                orderby file.CreationTime ascending
                                select file;
-            return setOfFilesByInterval.ToArray();
+            var tempArr = setOfFilesByInterval.ToArray();
+            FileStruct[] fileStruct = new FileStruct[tempArr.Length];
+            for (int i = 0; i < setOfFilesByInterval.Count(); i++)
+            {
+                fileStruct[i] = new FileStruct(tempArr[i].Name, tempArr[i].CreationTime);
+            }
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
+            return fileStruct;
         }
         public Dictionary<string, int> ExtensionAllocation(DirectoryInfo diDirectory)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             var extAlloc = files.GroupBy(file => file.Extension)
                                 .Select(alloc => 
@@ -83,6 +113,8 @@ namespace LINQClassesLib
                                                 Count = alloc.Count() 
                                             })
                                 .OrderBy(cnt => cnt.Count);
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return extAlloc.ToDictionary(e => e.Extension, c => c.Count);
         }
     }
@@ -90,6 +122,8 @@ namespace LINQClassesLib
     {
         public string GetLongestName(DirectoryInfo diDirectory, out int longextNameLength)
         {
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             longextNameLength = -1;
             int maxLengthIndex = -1;
@@ -101,11 +135,15 @@ namespace LINQClassesLib
                     maxLengthIndex = i;
                 }
             }
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return files[maxLengthIndex].Name;
         }
         public string[] GetLongestNames(DirectoryInfo diDirectory, int number)
         {
             GC.Collect();
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
             string[] filesNames = new string[files.Length];
             for (int i = 0; i < filesNames.Length; i++)
@@ -134,64 +172,83 @@ namespace LINQClassesLib
                 Debug.WriteLine(longestNames[i]);
 
             }
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return longestNames;
         }
-        public FileInfo[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
+
+        
+        public FileStruct[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
         {
+            Stopwatch stopwatch = new Stopwatch();
+            stopwatch.Start();
             FileInfo[] files = diDirectory.GetFiles();
-            FileInfo fiTemp;
+            List<FileStruct> fileStruct = new();
             for (int i = 0; i < files.Length; i++)
             {
-                for (int j = i; j < files.Length - 1; j++)
+                fileStruct.Add(new FileStruct ( files[i].Name, files[i].CreationTime ));
+            }
+            FileStruct fsTemp;
+            for (int i = 0; i < fileStruct.Count; i++)
+            {
+                for (int j = i; j < fileStruct.Count - 1; j++)
                 {
-                    if (files[j].CreationTime > files[j + 1].CreationTime)
+                    if (fileStruct[j].CreationTime > fileStruct[j + 1].CreationTime)
                     {
-                        fiTemp = files[j];
-                        files[j] = files[j + 1];
-                        files[j + 1] = fiTemp;
+                        fsTemp = fileStruct[j];
+                        fileStruct[j] = fileStruct[j + 1];
+                        fileStruct[j + 1] = fsTemp;
                     }
                 }
             }
             int indStart = -1;
             int indEnd = -1;
-            for (int i = 0; i < files.Length; i++)
+            for (int i = 0; i < fileStruct.Count; i++)
             {
                 if (files[i].CreationTime <= dtEnd)
                 {
                     indEnd = i;
                 }
-                if (indStart == -1 && files[i].CreationTime >= dtStart)
+                if (indStart == -1 && fileStruct[i].CreationTime >= dtStart)
                 {
                     indStart = i;
                 }
             }
-            FileInfo[] setOfFiles;
+            FileStruct[] setOfFiles;
             if (indStart >= 0 && indEnd > 0)
             {
                 if (indStart == indEnd)
                 {
-                    setOfFiles = new FileInfo[1];
-                    setOfFiles[0] = files[indStart];
+                    setOfFiles = new FileStruct[1];
+                    setOfFiles[0] = fileStruct[indStart];
                 }
                 else
                 {
-                    setOfFiles = new FileInfo[indEnd - indStart + 1];
+                    setOfFiles = new FileStruct[indEnd - indStart + 1];
                     int ind = 0;
                     for (int i = indStart; i <= indEnd; i++)
                     {
-                        setOfFiles[ind] = files[i];
+                        setOfFiles[ind] = fileStruct[i];
                         ind++;
                     }
                 }
+                stopwatch.Stop();
+                Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
                 return setOfFiles;
             }
             else
             {
-                return new FileInfo[0];
+                stopwatch.Stop();
+                Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
+                return new FileStruct[0];
             }
+
         }
         public Dictionary<string, int> ExtensionAllocation(DirectoryInfo diDirectory)
         {
+            Stopwatch stopwatch = new();
+            stopwatch.Start();
+
             var extAlloc = new Dictionary<string, int>();
             foreach (FileInfo file in diDirectory.GetFiles()) 
             {
@@ -204,6 +261,8 @@ namespace LINQClassesLib
                     extAlloc[file.Extension]++;
                 }
             }
+            stopwatch.Stop();
+            Debug.WriteLine("Time elapsed " + stopwatch.ElapsedMilliseconds);
             return extAlloc;
         }
     }
@@ -226,7 +285,7 @@ namespace LINQClassesLib
         {
             return Solver.GetLongestNames(diDirectory, number);
         }
-        public FileInfo[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
+        public FileStruct[] GetSetOfFilesByInterval(DirectoryInfo diDirectory, DateTime dtStart, DateTime dtEnd)
         {
             return Solver.GetSetOfFilesByInterval(diDirectory, dtStart, dtEnd);
         }
